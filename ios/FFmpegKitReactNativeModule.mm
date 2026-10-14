@@ -107,6 +107,20 @@ RCT_EXPORT_MODULE(FFmpegKitReactNativeModule);
     [self unregisterSessionDeleteListener];
 }
 
+// A JS reload invalidates this instance, but the session history keeps it alive through the callbacks its sessions captured, so it must stop listening here rather than in dealloc.
+- (void)invalidate {
+    [self unregisterSessionDeleteListener];
+    [super invalidate];
+}
+
+// callableJSModules is weak and goes nil with the JS runtime this instance served; sending then trips RCTEventEmitter's debug assert, so a callback outliving its runtime is dropped.
+- (void)sendEventIfAttached:(NSString*)eventName body:(id)body {
+    if (self.callableJSModules == nil) {
+        return;
+    }
+    [self sendEventWithName:eventName body:body];
+}
+
 - (NSArray<NSString*>*)supportedEvents {
     NSMutableArray *array = [NSMutableArray array];
 
@@ -945,7 +959,7 @@ RCT_EXPORT_METHOD(uninit:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejec
 
     NSDictionary *dictionary = [FFmpegKitReactNativeModule toLogDictionary:log];
     dispatch_async(dispatch_get_main_queue(), ^() {
-        [self sendEventWithName:EVENT_LOG_CALLBACK_EVENT body:dictionary];
+        [self sendEventIfAttached:EVENT_LOG_CALLBACK_EVENT body:dictionary];
     });
 }
 
@@ -956,21 +970,21 @@ RCT_EXPORT_METHOD(uninit:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejec
 
     NSDictionary *dictionary = [FFmpegKitReactNativeModule toStatisticsDictionary:statistics];
     dispatch_async(dispatch_get_main_queue(), ^() {
-        [self sendEventWithName:EVENT_STATISTICS_CALLBACK_EVENT body:dictionary];
+        [self sendEventIfAttached:EVENT_STATISTICS_CALLBACK_EVENT body:dictionary];
     });
 }
 
 - (void)emitSession:(id<Session>)session {
     NSDictionary *dictionary = [FFmpegKitReactNativeModule toSessionDictionary:session];
     dispatch_async(dispatch_get_main_queue(), ^() {
-        [self sendEventWithName:EVENT_COMPLETE_CALLBACK_EVENT body:dictionary];
+        [self sendEventIfAttached:EVENT_COMPLETE_CALLBACK_EVENT body:dictionary];
     });
 }
 
 - (void)emitSessionDeleted:(long)sessionId {
     NSDictionary *dictionary = @{KEY_SESSION_ID: [NSNumber numberWithLong:sessionId]};
     dispatch_async(dispatch_get_main_queue(), ^() {
-        [self sendEventWithName:EVENT_SESSION_DELETED_CALLBACK_EVENT body:dictionary];
+        [self sendEventIfAttached:EVENT_SESSION_DELETED_CALLBACK_EVENT body:dictionary];
     });
 }
 

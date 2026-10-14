@@ -60,7 +60,9 @@ included — no duplicate NEON set.
 - `LICENSE`: copied from upstream's repository root (the `react-native/` folder has none)
 - `PROVENANCE.md`: this file
 
-No source, podspec or Gradle file is modified.
+No podspec or Gradle file is modified. One source file is:
+
+- `ios/FFmpegKitReactNativeModule.mm` (`v9.0.0-gf.2`): the module stops listening for session deletions in `invalidate`, and drops an event once its JS runtime is gone (`callableJSModules == nil`). Upstream unregisters only in `dealloc`, which never runs after a JS reload because the session history keeps the old instance alive through the callbacks its sessions captured; the next deleted session then reaches the old instance and aborts debug builds on RCTEventEmitter's `RCTCallableJSModules is not set` assert. Release builds only logged a warning. Android already unregisters in `invalidate()`.
 
 ## Verified in the binaries
 
